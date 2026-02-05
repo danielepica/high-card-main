@@ -1,6 +1,8 @@
 package it.sara.demo.service.user.impl;
 
+import it.sara.demo.dto.UserDTO;
 import it.sara.demo.exception.GenericException;
+import it.sara.demo.service.assembler.UserAssembler;
 import it.sara.demo.service.database.UserRepository;
 import it.sara.demo.service.database.model.User;
 import it.sara.demo.service.user.UserService;
@@ -13,6 +15,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.Comparator;
+import java.util.List;
+import java.util.stream.Stream;
+
 @Slf4j
 @Service
 public class UserServiceImpl implements UserService {
@@ -23,6 +29,9 @@ public class UserServiceImpl implements UserService {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private UserAssembler userAssembler;
+
     @Override
     public AddUserResult addUser(CriteriaAddUser criteria) throws GenericException {
 
@@ -30,21 +39,7 @@ public class UserServiceImpl implements UserService {
         User user;
 
         try {
-
             returnValue = new AddUserResult();
-
-            if (stringUtil.isNullOrEmpty(criteria.getFirstName())) {
-                throw new GenericException(400, "First name is required");
-            }
-            if (stringUtil.isNullOrEmpty(criteria.getLastName())) {
-                throw new GenericException(400, "Last name is required");
-            }
-            if (stringUtil.isNullOrEmpty(criteria.getEmail())) {
-                throw new GenericException(400, "Email is required");
-            }
-            if (stringUtil.isNullOrEmpty(criteria.getPhoneNumber())) {
-                throw new GenericException(400, "Phone is required");
-            }
 
             user = new User();
             user.setFirstName(criteria.getFirstName());
@@ -67,6 +62,31 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public GetUsersResult getUsers(CriteriaGetUsers criteriaGetUsers) throws GenericException {
-        return null;
+        GetUsersResult result = new GetUsersResult();
+        String query = criteriaGetUsers.getQuery() == null ? "" : criteriaGetUsers.getQuery().toLowerCase();
+        Stream<User> stream = userRepository.getAll().stream()
+                .filter(u ->
+                        u.getFirstName().toLowerCase().contains(query) ||
+                                u.getLastName().toLowerCase().contains(query) ||
+                                u.getEmail().toLowerCase().contains(query) ||
+                                u.getPhoneNumber().contains(query)
+                )
+                .sorted(getComparator(criteriaGetUsers.getOrder()))
+                .skip(criteriaGetUsers.getOffset())
+                .limit(criteriaGetUsers.getLimit());
+        List<UserDTO> listResult = stream.map(us -> userAssembler.toDTO(us)).toList();
+        result.setUsers(listResult);
+        return result;
     }
+
+    private Comparator<User> getComparator(CriteriaGetUsers.OrderType order) {
+        return switch (order) {
+            case BY_FIRSTNAME -> Comparator.comparing(User::getFirstName, String.CASE_INSENSITIVE_ORDER);
+            case BY_FIRSTNAME_DESC ->
+                    Comparator.comparing(User::getFirstName, String.CASE_INSENSITIVE_ORDER).reversed();
+            case BY_LASTNAME -> Comparator.comparing(User::getLastName, String.CASE_INSENSITIVE_ORDER);
+            case BY_LASTNAME_DESC -> Comparator.comparing(User::getLastName, String.CASE_INSENSITIVE_ORDER).reversed();
+        };
+    }
+
 }
