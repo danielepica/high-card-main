@@ -5,6 +5,6 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class GenericPagedResponse extends GenericResponse {
+public class GenericPagedResponse {
     private int total;
 }

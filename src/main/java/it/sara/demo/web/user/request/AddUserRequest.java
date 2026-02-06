@@ -7,10 +7,12 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
 import org.springframework.format.annotation.NumberFormat;
 
 @Getter
 @Setter
+@ToString
 public class AddUserRequest extends GenericRequest {
 
     @Size(max = 20)

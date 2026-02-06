@@ -35,28 +35,19 @@ public class UserServiceImpl implements UserService {
     @Override
     public AddUserResult addUser(CriteriaAddUser criteria) throws GenericException {
 
-        AddUserResult returnValue;
         User user;
+        user = new User();
+        user.setFirstName(criteria.getFirstName());
+        user.setLastName(criteria.getLastName());
+        user.setEmail(criteria.getEmail());
+        user.setPhoneNumber(criteria.getPhoneNumber());
 
-        try {
-            returnValue = new AddUserResult();
-
-            user = new User();
-            user.setFirstName(criteria.getFirstName());
-            user.setLastName(criteria.getLastName());
-            user.setEmail(criteria.getEmail());
-            user.setPhoneNumber(criteria.getPhoneNumber());
-
-            if (!userRepository.save(user)) {
-                throw new GenericException(500, "Error saving user");
-            }
-
-        } catch (Exception e) {
-            if (log.isErrorEnabled()) {
-                log.error(e.getMessage(), e);
-            }
-            throw new GenericException(GenericException.GENERIC_ERROR);
+        if (!userRepository.save(user)) {
+            throw new GenericException(500, "Error saving user");
         }
+        AddUserResult returnValue = new AddUserResult();
+        returnValue.setUserId(user.getGuid());
+
         return returnValue;
     }
 
@@ -64,17 +55,29 @@ public class UserServiceImpl implements UserService {
     public GetUsersResult getUsers(CriteriaGetUsers criteriaGetUsers) throws GenericException {
         GetUsersResult result = new GetUsersResult();
         String query = criteriaGetUsers.getQuery() == null ? "" : criteriaGetUsers.getQuery().toLowerCase();
-        Stream<User> stream = userRepository.getAll().stream()
+        List<User> allUsers = userRepository.getAll();
+
+        // Filtro case-insensitive
+        List<User> filtered = allUsers.stream()
                 .filter(u ->
                         u.getFirstName().toLowerCase().contains(query) ||
                                 u.getLastName().toLowerCase().contains(query) ||
                                 u.getEmail().toLowerCase().contains(query) ||
                                 u.getPhoneNumber().contains(query)
                 )
+                .toList();
+
+        // total = numero totale dopo filtro
+        result.setTotal(filtered.size());
+
+        // Applico paginazione e ordinamento
+        List<UserDTO> listResult = filtered.stream()
                 .sorted(getComparator(criteriaGetUsers.getOrder()))
                 .skip(criteriaGetUsers.getOffset())
-                .limit(criteriaGetUsers.getLimit());
-        List<UserDTO> listResult = stream.map(us -> userAssembler.toDTO(us)).toList();
+                .limit(criteriaGetUsers.getLimit())
+                .map(u -> userAssembler.toDTO(u))
+                .toList();
+
         result.setUsers(listResult);
         return result;
     }

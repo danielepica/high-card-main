@@ -4,11 +4,13 @@ import it.sara.demo.dto.UserDTO;
 import it.sara.demo.web.response.GenericPagedResponse;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
 
 import java.util.List;
 
 @Getter
 @Setter
+@ToString
 public class GetUsersResponse extends GenericPagedResponse {
     private List<UserDTO> users;
 }
