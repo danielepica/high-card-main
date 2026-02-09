@@ -39,27 +39,61 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String header = request.getHeader("Authorization");
 
         if (header == null || !header.startsWith("Bearer ")) {
-            throw new RuntimeException("Missing token");
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json");
+            response.getWriter().write("{\"status\":{\"code\":401,\"message\":\"Missing token\"}}");
+            return; // interrompi la catena
         }
 
         String token = header.substring(7);
 
-        Claims claims = jwtService.validateToken(token);
+        try {
 
-        String username = claims.getSubject();
-        List<String> roles = claims.get("roles", List.class);
+            Claims claims = jwtService.validateToken(token);
 
-        Authentication auth =
-                new UsernamePasswordAuthenticationToken(
-                        username,
-                        null,
-                        roles.stream()
-                             .map(r -> new SimpleGrantedAuthority("ROLE_" + r))
-                             .toList()
-                );
+            String username = claims.getSubject();
+            List<String> roles = claims.get("roles", List.class);
 
-        SecurityContextHolder.getContext().setAuthentication(auth);
+            Authentication auth =
+                    new UsernamePasswordAuthenticationToken(
+                            username,
+                            null,
+                            roles.stream()
+                                    .map(r -> new SimpleGrantedAuthority("ROLE_" + r))
+                                    .toList()
+                    );
 
-        filterChain.doFilter(request, response);
+            SecurityContextHolder.getContext().setAuthentication(auth);
+
+            filterChain.doFilter(request, response);
+
+        } catch (io.jsonwebtoken.ExpiredJwtException e) {
+            writeErrorResponse(response, 401, "Token expired");
+        } catch (io.jsonwebtoken.JwtException e) {
+            writeErrorResponse(response, 401, "Invalid token");
+        } catch (Exception e) {
+            writeErrorResponse(response, 500, "Authentication error");
+        }
     }
+
+    private void writeErrorResponse(HttpServletResponse response,
+                                    int code,
+                                    String message) throws IOException {
+
+        response.setStatus(HttpServletResponse.SC_OK);
+        response.setContentType("application/json");
+
+        String json = """
+        {
+            "status": {
+                "code": %d,
+                "message": "%s",
+                "traceId": "%s"
+            }
+        }
+        """.formatted(code, message, java.util.UUID.randomUUID());
+
+        response.getWriter().write(json);
+    }
+
 }

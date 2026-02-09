@@ -29,8 +29,15 @@ public class GlobalExceptionHandler {
         return ResponseEntity.ok(GenericResponse.error(400, message));
     }
 
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<GenericResponse<?>> handleRuntimeExceptions(RuntimeException ex) {
+        String message = ex.getMessage();
+        return ResponseEntity.ok(GenericResponse.error(400, message));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<GenericResponse<?>> handleOtherExceptions(Exception ex) {
         return ResponseEntity.ok(GenericResponse.error(500, ex.getMessage()));
     }
+
 }
